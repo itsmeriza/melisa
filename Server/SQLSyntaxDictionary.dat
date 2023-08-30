@@ -1,0 +1,18 @@
+[MySQL]
+JoinConditional=ON
+InnerJoin=JOIN
+LeftJoin=LEFT JOIN
+RightJoin=RIGHT JOIN
+OuterJoin=OUTER JOIN
+OpEqual==
+OpNotEqual=<>
+OpLessThan=<
+OpGreaterThan=>
+OpLessThanOrEqual=<=
+OpGreaterThanOrEqual=>=
+OpLike=LIKE
+LikeWildChar=%
+Insert=INSERT INTO %s(%s) VALUES (%s)
+Update=UPDATE %s SET %s WHERE %s
+GetLastId=SELECT MAX(%s) FROM %s
+

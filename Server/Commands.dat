@@ -1,0 +1,3 @@
+POST /1.0/user/sign-in/
+POST /1.0/user/sign-out/
+GET /1.0/user/captions/

@@ -1,0 +1,12 @@
+[Unit]
+Description=Observer service
+After=network-online.target
+Requires=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/home/riza/observer/Melisa -d
+Restart=on-filure
+
+[Install]
+WantedBy=multi-user.target
