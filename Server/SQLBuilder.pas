@@ -100,7 +100,7 @@ type
     function DoGetSQL(): string; override;
     procedure DoClear(); override;
   public
-    constructor Create(Owner: TSQLBuilder; DBConnection: TSQLConnector); override;
+    constructor Create(Owner: TSQLBuilder; Connection: TSQLConnector); override;
     destructor Destroy; override;
 
     function Get(): TDataSet;
@@ -122,7 +122,7 @@ type
     function DoGetSQL(): string; override;
     procedure DoClear(); override;
   public
-    constructor Create(Owner: TSQLBuilder; DBConnection: TSQLConnector; AutoInsertCreatedBy: Boolean = False); reintroduce;
+    constructor Create(Owner: TSQLBuilder; Connection: TSQLConnector; AutoInsertCreatedBy: Boolean = False); reintroduce;
     destructor Destroy; override;
 
     procedure Table(T: string);
@@ -138,7 +138,7 @@ type
     function DoGetSQL(): string; override;
     procedure DoClear(); override;
   public
-    constructor Create(Owner: TSQLBuilder; DBConnection: TSQLConnector; AutoUpdateModifiedBy: Boolean = False); reintroduce;
+    constructor Create(Owner: TSQLBuilder; Connection: TSQLConnector; AutoUpdateModifiedBy: Boolean = False); reintroduce;
     destructor Destroy; override;
 
     function GetSQL(): string;
@@ -168,7 +168,7 @@ type
     fSelect: TSQLSelect;
     fUpdate: TSQLUpdate;
   public
-    constructor Create(Owner: TObject; DBConnection: TSQLConnector); reintroduce;
+    constructor Create(Owner: TObject; Connection: TSQLConnector); reintroduce;
     destructor Destroy; override;
   published
     property Owner: TObject read fOwner;
@@ -180,7 +180,7 @@ type
 
 implementation
 
-uses DBConnection, Data, Utils, StrUtils;
+uses Connection, Data, Utils, StrUtils;
 
 { TSQLDelete }
 
@@ -256,18 +256,20 @@ begin
   fFields.Clear;
 end;
 
-constructor TSQLUpdate.Create(Owner:TSQLBuilder; DBConnection: TSQLConnector;
+constructor TSQLUpdate.Create(Owner:TSQLBuilder; Connection: TSQLConnector;
   AutoUpdateModifiedBy: Boolean = False);
 var
   uid: string;
 begin
-  inherited Create(Owner, DBConnection);
+  inherited Create(Owner, Connection);
 
   if AutoUpdateModifiedBy then
   begin
     Field('ModifiedDate=NOW()');
 
-    uid := (fOwner.Owner as TSQLDBConnection).Owner.Session.Content.Values['UId'];
+    //uid := (fOwner.Owner as TSQLDBConnection).Owner.Session.Content.Values['UId'];
+    uid := (fOwner.Owner as TSQLDBConnection).Session.Content.Values['UId'];
+
     if uid <> '' then
       Field('ModifiedBy=' + uid);
   end;
@@ -341,11 +343,11 @@ begin
   inherited DoClear();
 end;
 
-constructor TSQLInsert.Create(Owner: TSQLBuilder; DBConnection: TSQLConnector; AutoInsertCreatedBy: Boolean = False);
+constructor TSQLInsert.Create(Owner: TSQLBuilder; Connection: TSQLConnector; AutoInsertCreatedBy: Boolean = False);
 var
   uid: string;
 begin
-  inherited Create(Owner, DBConnection);
+  inherited Create(Owner, Connection);
   fFields := TStringList.Create;
   fFields.Delimiter := ',';
 
@@ -355,7 +357,8 @@ begin
   if not AutoInsertCreatedBy then
     Exit;
 
-  uid := (fOwner.Owner as TSQLDBConnection).Owner.Session.Content.Values['UId'];
+  //uid := (fOwner.Owner as TSQLDBConnection).Owner.Session.Content.Values['UId'];
+  uid := (fOwner.Owner as TSQLDBConnection).Session.Content.Values['UId'];
   if uid <> '' then
   begin
     Field('CreatedBy');
@@ -454,9 +457,9 @@ begin
   fFields.Clear;
 end;
 
-constructor TSQLSelect.Create(Owner: TSQLBuilder; DBConnection: TSQLConnector);
+constructor TSQLSelect.Create(Owner: TSQLBuilder; Connection: TSQLConnector);
 begin
-  inherited Create(Owner, DBConnection);
+  inherited Create(Owner, Connection);
 end;
 
 destructor TSQLSelect.Destroy;
@@ -669,14 +672,14 @@ end;
 
 { TSQLBuilder }
 
-constructor TSQLBuilder.Create(Owner: TObject; DBConnection: TSQLConnector);
+constructor TSQLBuilder.Create(Owner: TObject; Connection: TSQLConnector);
 begin
   inherited Create;
   fOwner := Owner;
-  fSelect := TSQLSelect.Create(Self, DBConnection);
-  fInsert := TSQLInsert.Create(Self, DBConnection);
-  fUpdate := TSQLUpdate.Create(Self, DBConnection);
-  fDelete := TSQLDelete.Create(Self, DBConnection);
+  fSelect := TSQLSelect.Create(Self, Connection);
+  fInsert := TSQLInsert.Create(Self, Connection);
+  fUpdate := TSQLUpdate.Create(Self, Connection);
+  fDelete := TSQLDelete.Create(Self, Connection);
 end;
 
 destructor TSQLBuilder.Destroy;

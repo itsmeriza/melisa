@@ -5,7 +5,7 @@ unit ObjectFactoryDB;
 interface
 
 uses
-  Classes, SysUtils, ObjectFactory, DBConnection, ObjectBase, HandleDB;
+  Classes, SysUtils, ObjectFactory, Connection, ObjectBase, HandleDB;
 
 type
 
@@ -13,12 +13,12 @@ type
 
   TObjectFactoryDB = class(TObjectFactory)
   private
-    fConnection: TDbConnection;
+    fConnection: TConnectionDB;
   public
     function CreateObject(ClassId: string): TObjectBase; override;
     function GetObject(ClassId: string): TObjectBase; override;
   published
-    property Connection: TDbConnection read fConnection write fConnection;
+    property Connection: TConnectionDB read fConnection write fConnection;
   end;
 
 implementation

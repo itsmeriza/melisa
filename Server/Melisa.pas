@@ -7,9 +7,9 @@ uses
   cthreads,
   {$ENDIF}
   Classes, SysUtils, Crt, Commons, HTTPServer, Data, Utils, MTypes, Router,
-  RequestExecutor, Request, ObjectBase, Entry, EntryUser, RJSON, DBConnection,
+  RequestExecutor, Request, ObjectBase, Entry, EntryUser, Connection,
   SQLBuilder, ObjectFactory, HandleDB, User, Handle, ObjectFactoryDB,
-  IntfObjectFactory, IdCookieManager, Helpers, Worker, WorkerHouseCleaner,
+  IntfObjectFactory, IdCookieManager, Helpers, Worker,
   UserAccess, ReactiveExtension, Req10UserSignInPost, Menu, EntryMenu, Command;
 
 var
@@ -18,6 +18,7 @@ var
   isDaemonized, isRun: Boolean;
   cm: TIdCookieManager;
   subscriber: TSubscriber;
+  connectionMgr: TConnectionManager;
 
 procedure DoServerInformation();
 begin
@@ -174,12 +175,11 @@ begin
   DataApp := TDataApp.Create;
   r := TRouter.Create;
   DoRegisterRoutes(r);
-  server := THTTPServer.Create(r);
 
-  subscriber:= TSubscriber.Create(
-  	DataApp.Settings.MessageBroker.Values['Host'],
-    DataApp.Settings.MessageBroker.Values['Port'].ToInteger()
-  );
+  connectionMgr:= TConnectionManager.Create(DataApp.Settings.ConnectionInfos);
+  server := THTTPServer.Create(r, connectionMgr);
+
+  subscriber:= TSubscriber.Create(r, connectionMgr);
   subscriber.Vhost:= DataApp.Settings.MessageBroker.Values['Vhost'];
   subscriber.User:= DataApp.Settings.MessageBroker.Values['User'];
   subscriber.Passcode:= DataApp.Settings.MessageBroker.Values['Passcode'];
@@ -214,6 +214,7 @@ begin
     DataApp.Free;
     r.Free;
     server.Free;
+    connectionMgr.Free;
     subscriber.Free;
     cm.Free;
   end;

@@ -25,7 +25,7 @@ type
 
 implementation
 
-uses DBConnection, SQLBuilder, UserAccess;
+uses Connection, SQLBuilder, UserAccess;
 
 { TMenu }
 

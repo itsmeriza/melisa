@@ -135,8 +135,11 @@ const
   //                ;
 
   SQL_CONNECTION_DRIVER_NAME_INITIAL = 'MySQL';
-  MQ_CONNECTION_DRIVER_NAME_INITIAL = 'STOMP';
+  MQ_CONNECTION_DRIVER_NAME_INITIAL = 'RabbitMQ';
   CNX_1 = 'CNX_1';
+  CNX_2 = 'CNX_2';
+
+  STOMP_PORT_DEFAULT = 61613;
 
 {$IFDEF DEBUG}
   DB_VHOST = '192.168.28.3';
@@ -145,7 +148,6 @@ const
 
   MYSQL_DATETIME_FORMAT = 'yyyy-mm-dd hh:nn:ss';
   MYSQL_DATE_FORME = 'yyyy-mm-dd';
-  DEFAULT_TOKEN_LENGTH = 32;
 
   USER_ACCESS_KEY = 'UserAccess';
   PASSWORD_SALT = 'EtayyoEtayyoo!';

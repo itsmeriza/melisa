@@ -5,9 +5,14 @@ unit ReactiveExtension;
 interface
 
 uses
-  Classes, SysUtils, rstomp, Utils, Data, RequestExecutor;
+  Classes, SysUtils, rstomp, Utils, Data, RequestExecutor, Connection, Router,
+  Command;
 
 type
+  TCommandStomp = class(TCommand)
+  public
+  end;
+
   { TSubscriber }
 
   TSubscriber = class
@@ -20,13 +25,16 @@ type
     fSTOMP: TRSTOMP;
     fVhost: string;
     fSubscriptionIds: TStringList;
+    fConnectionMgr: TConnectionManager;
+    fReqExec: TRequestExecutor;
+    fRouter: TRouter;
     procedure DoRecvConnected(Frame: TRStompFrame);
     procedure DoRecvError(Frame: TRStompFrame);
     procedure DoRecvMessage(Frame: TRStompFrame);
     procedure DoRecvReceipt(Frame: TRStompFrame);
     procedure DoSubscribeTopics();
   public
-    constructor Create(Host: string; Port: Word); reintroduce;
+    constructor Create(Router: TRouter; ConnectionMgr: TConnectionManager); reintroduce;
     destructor Destroy; override;
 
     function Connect(): Boolean;
@@ -41,7 +49,7 @@ type
 
 implementation
 
-uses rjson;
+uses rjson, Commons;
 
 { TSubscriber }
 
@@ -84,30 +92,50 @@ begin
 end;
 
 procedure TSubscriber.DoRecvMessage(Frame: TRStompFrame);
+var
+  cmd: TCommandStomp;
 begin
   if not fSTOMP.Connector.Connected then
   	Exit;
 
+  cmd:= TCommandStomp.Create;
+  cmd.Route:= fRouter.GetRoute(
+  	Frame.GetHeaderValue('Document'),
+    Frame.GetHeaderValue('Command-Type')
+  );
+
   try
-    //TRequestExecutor(fReqExec).Fire();
+    try
+    	fReqExec.Fire(cmd);
+    except
+    	on E: Exception do
+      	WriteLn(E.ClassName, ': ', E.Message);
+    end;
   finally
+  	cmd.Free;
   end;
 end;
 
-constructor TSubscriber.Create(Host: string; Port: Word);
+constructor TSubscriber.Create(Router: TRouter;
+  ConnectionMgr: TConnectionManager);
 begin
   inherited Create();
 
-  fHost:= Host;
-  fPort:= Port;
+  fRouter:= Router;
   fSubscriptionIds:= TStringList.Create;
-  fSTOMP:= TRStomp.Create(fHost, fPort);
+  fSTOMP:= TRStomp.Create(
+  	DataApp.Settings.MessageBroker.Values['Host'],
+    StrToIntDef(DataApp.Settings.MessageBroker.Values['Port'], STOMP_PORT_DEFAULT)
+  );
+  fConnectionMgr:= ConnectionMgr;
+  fReqExec:= TRequestExecutor.Create(fRouter, fConnectionMgr);
 end;
 
 destructor TSubscriber.Destroy;
 begin
   fSubscriptionIds.Free;
   fSTOMP.Free;
+  fReqExec.Free;
   inherited Destroy;
 end;
 

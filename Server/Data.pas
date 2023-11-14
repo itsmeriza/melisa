@@ -21,7 +21,7 @@ type
     fBehaviour: TStringList;
     fConnection: TStringList;
     fDatabase: TStringList;
-    fDBConnectionInfo: TListConnectionInfo;
+    fConnectionInfos: TListConnectionInfo;
     fMail: TStringList;
     fMessageBroker: TStringList;
   public
@@ -35,7 +35,7 @@ type
     property Connection: TStringList read fConnection write fConnection;
     property Mail: TStringList read fMail write fMail;
     property Behaviour: TStringList read fBehaviour write fBehaviour;
-    property DBConnectionInfo: TListConnectionInfo read fDBConnectionInfo write fDBConnectionInfo;
+    property ConnectionInfos: TListConnectionInfo read fConnectionInfos write fConnectionInfos;
     property MessageBroker: TStringList read fMessageBroker write fMessageBroker;
   end;
 
@@ -76,7 +76,7 @@ begin
   fConnection := TStringList.Create;
   fMail := TStringList.Create;
   fBehaviour := TStringList.Create;
-  fDBConnectionInfo := TListConnectionInfo.Create;
+  fConnectionInfos := TListConnectionInfo.Create;
   fMessageBroker:= TStringList.Create;
 end;
 
@@ -88,8 +88,8 @@ begin
   fMail.Free;
   fBehaviour.Free;
 
-  TUtils.ClearList(fDBConnectionInfo);
-  fDBConnectionInfo.Free;
+  TUtils.ClearList(fConnectionInfos);
+  fConnectionInfos.Free;
 
   fMessageBroker.Free;
 
@@ -102,9 +102,9 @@ var
   c: PConnectionInfo;
 begin
   Result := nil;
-  for i := 0 to fDBConnectionInfo.Count - 1 do
+  for i := 0 to fConnectionInfos.Count - 1 do
   begin
-    c := fDBConnectionInfo[i];
+    c := fConnectionInfos[i];
     if AnsiSameText(c^.ConnectionId, Id) then
     begin
       Result := c;
@@ -132,7 +132,7 @@ begin
     f.ReadSectionValues('Behaviour', fSettings.Behaviour);
     f.ReadSectionValues('MessageBroker', fSettings.MessageBroker);
 
-    DoLoadConnectionInfo(fSettings.DBConnectionInfo, f);
+    DoLoadConnectionInfo(fSettings.ConnectionInfos, f);
   finally
     f.Free;
   end;
@@ -179,9 +179,11 @@ begin
         info^.ConnectionId := sections[i];
         info^.DriverName := params.Values['DriverName'];
         info^.Server := params.Values['Server'];
+        info^.Port:= StrToIntDef(params.Values['Port'], 0);
         info^.Database := params.Values['Database'];
         info^.Username := params.Values['Username'];
         info^.Password := params.Values['Password'];
+        info^.MinConnection:= StrToIntDef(params.Values['MinConnectionCount'], 1);
 
         List.Add(info);
       finally

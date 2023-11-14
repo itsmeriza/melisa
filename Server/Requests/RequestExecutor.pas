@@ -5,30 +5,32 @@ unit RequestExecutor;
 interface
 
 uses
-  Classes, SysUtils, Router, Request, DBConnection, Command;
+  Classes, SysUtils, Router, Request, Connection, Command;
 
 type
-  { TRequestExecutorHTTP }
 
-  TRequestExecutorHTTP = class
+  { TRequestExecutor }
+
+  TRequestExecutor = class
   private
     fRouter: TRouter;
-    fConnectionMgr: TDBConnectionManager;
+    fConnectionMgr: TConnectionManager;
     function DoCreateRequest(Command: TCommand): TRequest;
   public
-    constructor Create(Router: TRouter; ConnectionMgr: TDBConnectionManager);
+    constructor Create(Router: TRouter; ConnectionMgr: TConnectionManager); reintroduce;
     destructor Destroy; override;
 
     procedure Fire(Command: TCommand);
   end;
 
+  { TRequestExecutorHTTP }
+
+
 implementation
 
-uses HTTPServer;
+{ TRequestExecutor }
 
-{ TRequestExecutorHTTP }
-
-function TRequestExecutorHTTP.DoCreateRequest(Command: TCommand): TRequest;
+function TRequestExecutor.DoCreateRequest(Command: TCommand): TRequest;
 type
   TRequestClass = class of TRequest;
 var
@@ -38,28 +40,23 @@ begin
   Result := o.Create(Command);
 end;
 
-constructor TRequestExecutorHTTP.Create(Router: TRouter;
-  ConnectionMgr: TDBConnectionManager);
+constructor TRequestExecutor.Create(Router: TRouter;
+  ConnectionMgr: TConnectionManager);
 begin
   fRouter := Router;
   fConnectionMgr:= ConnectionMgr;
 end;
 
-destructor TRequestExecutorHTTP.Destroy;
+destructor TRequestExecutor.Destroy;
 begin
   inherited Destroy;
 end;
 
-procedure TRequestExecutorHTTP.Fire(Command: TCommand);
+procedure TRequestExecutor.Fire(Command: TCommand);
 var
   req: TRequest;
 begin
   req := DoCreateRequest(Command);
-  if req = nil then
-  begin
-    TCommandHTTP(Command).ResponseInfo.ResponseNo := 400;
-    Exit;
-  end;
 
   try
     req.Perform();

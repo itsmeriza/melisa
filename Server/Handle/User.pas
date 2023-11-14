@@ -30,7 +30,6 @@ type
     //function GetEntry(UId: string): TEntryUser;
     function IsExist(Identifier: string): Boolean;
     function SignIn(Identifier, Password: string): TEntryUser;
-    function GenerateToken(): TEntryToken;
     function GetAccessRights(UId: string): TList;
     function GetGroups(UId: string): Classes.TList;
     //function GetEntryUserInfo(UId: string): TEntryUserInfo;
@@ -47,7 +46,7 @@ type
 
 implementation
 
-uses DBConnection, Commons, DB, SQLBuilder, Utils;
+uses Connection, Commons, DB, SQLBuilder, Utils;
 
 { TUserConst }
 
@@ -277,20 +276,14 @@ begin
       Result.Email:= dset.FieldByName('email').AsString;
       Result.MobilePhone:= dset.FieldByName('mobile_phone').AsString;
 
-      //D/oAddEntryLogonHistory(Result.UId);
+      //DoAddEntryLogonHistory(Result.UId);
     finally
       dset.Free;
     end;
   end;
 end;
 //
-function TUser.GenerateToken(): TEntryToken;
-begin
-  Result := TEntryToken.Create;
-  Result.Key := TUtils.CreateRandomKey(DEFAULT_TOKEN_LENGTH);
-  Result.Length := Length(Result.Key);
-end;
-//
+
 function TUser.GetAccessRights(UId: string): TList;
 var
   dset: TDataSet;

@@ -36,6 +36,7 @@ type
 
     function GetRoute(URI: string; Command: TCommandType): TRoute;
     function GetRoute(AClassName: string): TRoute;
+    function GetRoute(URI, Command: string): TRoute;
     function RegisterRoute(URI, Command: string): TRoute;
     function IsExist(URI: string; Command: TCommandType): Boolean;
   end;
@@ -89,6 +90,14 @@ begin
       Exit;
     end;
   end;
+end;
+
+function TRouter.GetRoute(URI, Command: string): TRoute;
+var
+  c: TCommandType;
+begin
+  c:= TRoute.GetCommandType(Command);
+  Result:= GetRoute(URI, c);
 end;
 
 function TRouter.RegisterRoute(URI, Command: string): TRoute;

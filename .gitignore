@@ -6,3 +6,5 @@
 /backup
 /Server/lib/x86_64-linux
 /Server/lib/x86_64-win64
+/ExternalLibrary
+/Server/ObjectFactory/backup

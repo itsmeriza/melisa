@@ -5,7 +5,10 @@ unit Helpers;
 interface
 
 uses
-  Classes, SysUtils, Data, IdCookieManager;
+  Classes, SysUtils, Data, IdCookieManager, Entry;
+
+const
+  DEFAULT_TOKEN_LENGTH = 32;
 
 type
   TTrimmedChars = set of Char;
@@ -18,6 +21,7 @@ type
     class function BuildQueryStr(S: TStringList): string;
     class function TrimEx(S: string; Chars: TTrimmedChars): string;
     class function GetListeningAddress(): string;
+    class function GenerateToken(): TEntryToken;
     class procedure SetGlobalCookieManager(CookieManager: TIdCookieManager);
   end;
 
@@ -26,7 +30,7 @@ var
 
 implementation
 
-uses IdHTTP, IdSSLOpenSSL;
+uses IdHTTP, IdSSLOpenSSL, Utils;
 
 { THelpers }
 
@@ -115,6 +119,13 @@ begin
     DataApp.Settings.Connection.Values['ListeningIP'],
     DataApp.Settings.Connection.values['SSLPort']
   ]);
+end;
+
+class function THelpers.GenerateToken: TEntryToken;
+begin
+  Result := TEntryToken.Create;
+  Result.Key := TUtils.CreateRandomKey(DEFAULT_TOKEN_LENGTH);
+  Result.Length := Length(Result.Key);
 end;
 
 class procedure THelpers.SetGlobalCookieManager(CookieManager: TIdCookieManager

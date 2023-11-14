@@ -5,7 +5,7 @@ unit HandleDB;
 interface
 
 uses
-  Classes, SysUtils, Handle, DBConnection, ObjectFactory,
+  Classes, SysUtils, Handle, Connection, ObjectFactory,
   IdCustomHTTPServer;
 
 type
@@ -14,17 +14,17 @@ type
 
   THandleDB = class(THandle)
   protected
-    fConnection: TDBConnection;
+    fConnection: TConnectionDB;
     fSession: TIdHTTPSession;
     fLimitationClause: string;
     fWpId: string;
     function GetContent(Key: string): string;
     procedure DoInitLanguage(); override;
   public
-    constructor Create(ObjF: TObjectFactory; Connection: TDBConnection); reintroduce; virtual;
+    constructor Create(ObjF: TObjectFactory; Connection: TConnectionDB); reintroduce; virtual;
     destructor Destroy; override;
 
-    property Connection: TDBConnection read fConnection;
+    property Connection: TConnectionDB read fConnection;
   end;
 
 implementation
@@ -41,7 +41,7 @@ begin
 
 end;
 
-constructor THandleDB.Create(ObjF: TObjectFactory; Connection: TDBConnection);
+constructor THandleDB.Create(ObjF: TObjectFactory; Connection: TConnectionDB);
 begin
   inherited Create(ObjF, nil, nil);
   fConnection := Connection;

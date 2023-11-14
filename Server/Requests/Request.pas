@@ -5,7 +5,7 @@ unit Request;
 interface
 
 uses
-  Classes, SysUtils, ObjectBase, Entry, MTypes, Utils, DBConnection,
+  Classes, SysUtils, ObjectBase, Entry, MTypes, Utils, Connection,
   User, ObjectFactoryDB, rstomp, Command, HTTPServer;
 
 const
@@ -50,20 +50,26 @@ type
   { TRequest }
 
   TRequest = class(TObjectBase)
+  private
+    fConnection: TConnection;
   protected
     fCommand: TCommand;
+    fConnectionId: string;
     function DoIsUserHaveAccess(): Boolean; virtual;
     procedure DoPerform(var R: TResponse); virtual; abstract;
   public
     constructor Create(Command: TCommand); reintroduce; virtual;
+    destructor Destroy; override;
+
     procedure Perform(); virtual; abstract;
+  published
+    property Connection: TConnection read fConnection;
   end;
 
   { TRequestHTTP }
 
   TRequestHTTP = class(TRequest)
   private
-    fConnection: TDBConnection;
     fReqId: string;
 
     procedure DoRespond(ErrCode: Integer = ERR_Success; Msg: string = '');
@@ -71,12 +77,10 @@ type
     procedure DoRecordPerform(R: TResponse);
   protected
     fObjF: TObjectFactoryDB;
-    fDBConnectionMgr: TDBConnectionManager;
     fIsUseTransaction: Boolean;
     fIsNeedSignIn: Boolean;
     fCommandTypes: TCommandTypes;
     fIsRecorded: Boolean;
-    fConnectionId: string;
 
     function DoIsUserHaveAccess(): Boolean; override;
   public
@@ -88,7 +92,6 @@ type
     property ReqId: string read fReqId;
     property IsUseTransaction: Boolean read fIsUseTransaction write fIsUseTransaction;
     property ObjF: TObjectFactoryDB read fObjF;
-    property Connection: TDBConnection read fConnection;
   end;
 
 implementation
@@ -105,7 +108,17 @@ end;
 constructor TRequest.Create(Command: TCommand);
 begin
   inherited Create();
-  fCommand := Command as TCommandHTTP;
+
+  fCommand := Command;
+  fConnection:= Command.ConnectionMgr.CreateConnection(fConnectionId);
+  fConnection.Open();
+end;
+
+destructor TRequest.Destroy;
+begin
+  fConnection.IsUsed:= False;
+  fConnection.LastUsed:= Now();
+  inherited Destroy;
 end;
 
 { TResponse }
@@ -182,22 +195,18 @@ end;
 
 constructor TRequestHTTP.Create(Command: TCommand);
 begin
+  fConnectionId:= CNX_1;
   inherited Create(Command);
-
-  fDBConnectionMgr:= THTTPServer(TCommandHTTP(fCommand).Owner).ConnectionMgr;
 
   fReqId := TCommandHTTP(fCommand).Cmd;
   fIsUseTransaction := False;
   fIsNeedSignIn := True;
   fIsRecorded:= False;
 
-  fConnectionId:= CNX_1;
-  fConnection:= fDBConnectionMgr.CreateConnection(fConnectionId);
-  fConnection.Session:= TCommandHTTP(fCommand).RequestInfo.Session;
-  fConnection.Open();
+  TConnectionDB(fConnection).Session:= TCommandHTTP(fCommand).RequestInfo.Session;
 
   fObjF := TObjectFactoryDB.Create;
-  fObjF.Connection:= fConnection;
+  fObjF.Connection:= TConnectionDB(fConnection);
 
   fCommandTypes := [TCommandType.hcPOST];
   TCommandHTTP(fCommand).ResponseInfo.CustomHeaders.Values['Allow'] := 'POST';
@@ -205,9 +214,6 @@ end;
 
 destructor TRequestHTTP.Destroy;
 begin
-  fConnection.IsUsed:= False;
-  fConnection.LastUsed:= Now();
-
   fObjF.Free;
   inherited Destroy;
 end;
@@ -253,14 +259,14 @@ begin
         DoRecordPerform(r);
 
       if fIsUseTransaction then
-        fConnection.Commit();
+        TConnectionDB(fConnection).Commit();
 
       DoRespond(r);
     except
       on E: Exception do
       begin
         if fIsUseTransaction then
-          fConnection.Rollback();
+          TConnectionDB(fConnection).Rollback();
 
         DoRespond(ERR_Unknown, E.Message);
         raise

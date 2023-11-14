@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, Request, HTTPServer, RJSON, Entry, User,
-  DBConnection, Command;
+  Connection, Command;
 
 const
   ERR_AlreadySignedIn = -1;
@@ -33,7 +33,7 @@ type
 
 implementation
 
-uses MTypes, EntryUser, UserAccess, Utils, Data, Menu;
+uses MTypes, EntryUser, UserAccess, Utils, Data, Menu, Helpers;
 
 { TReq10UserSignInPost }
 
@@ -122,7 +122,6 @@ var
   objUser: TUser;
   e: TEntryUser;
   t: TEntryToken;
-  o: TObject;
 begin
   data:= TCommandHTTP(fCommand).Post('data');
   if data = '' then
@@ -162,7 +161,7 @@ begin
     DoFetchUserAccesses(objUser, e.UId);
     DoFetchUserMenus(e.Menus);
 
-    t:= objUser.GenerateToken();
+    t:= THelpers.GenerateToken();
     TCommandHTTP(fCommand).SetToken(t.Key);
     e.Token.Key:= t.Key;
     e.Token.Length:= t.Length;

@@ -34,9 +34,11 @@ type
     ConnectionId: string;
     DriverName: string;
     Server: string;
+    Port: Word;
     Database: string;
     Username: string;
     Password: string;
+    MinConnection: Word;
   end;
 
   PConnectionInfo = ^TConnectionInfo;

@@ -6,8 +6,8 @@ interface
 
 uses
   Classes, SysUtils, IdHTTPServer, IdContext, IdCustomHTTPServer, Router,
-  MTypes, UserAccess, IdSSLOpenSSL, IdGlobal, DbConnection, WorkerHouseCleaner,
-  rstomp, Command;
+  MTypes, UserAccess, IdSSLOpenSSL, IdGlobal, Connection, rstomp, Command,
+  IdSchedulerOfThreadDefault;
 
 const
   MULTIPART_IDENTIFIER = 'multipart/form-data';
@@ -72,15 +72,17 @@ type
 
   THTTPServer = class;
 
+  { TCommandHTTP }
+
   TCommandHTTP = class(TCommand)
     private
-      fCmd: string;
       fRequestInfo: TIdHTTPRequestInfo;
       fResponseInfo: TIdHTTPResponseInfo;
       fMultipart: TMultipartParser;
       function DoGetValue(AParam: string): string;
     public
-      constructor Create(AOwner: THTTPServer; ARequestInfo: TIdHTTPRequestInfo; AResponseInfo: TIdHTTPResponseInfo);
+      constructor Create(AOwner: THTTPServer; ARequestInfo: TIdHTTPRequestInfo;
+        AResponseInfo: TIdHTTPResponseInfo); reintroduce;
       destructor Destroy; override;
 
       function Get(AParam: string): string;
@@ -100,7 +102,6 @@ type
       procedure SetUserAccessAddr(Addr: string);
       procedure ClearToken();
     published
-      property Cmd: string read fCmd write fCmd;
       property RequestInfo: TIdHTTPRequestInfo read fRequestInfo write fRequestInfo;
       property ResponseInfo: TIdHTTPResponseInfo read fResponseInfo write fResponseInfo;
     end;
@@ -111,14 +112,14 @@ type
   private
     fRouter: TRouter;
     fServer: TIdHTTPServer;
-    fConnectionMgr: TDBConnectionManager;
+    fConnectionMgr: TConnectionManager;
     fReqExec: TObject;
     fUserAccess: TUserAccess;
     fIsUseOwnList: Boolean;
     fAllowOrigin: string;
     fAllowCredentials: string;
     fIsActive: Boolean;
-    fCleaner: TWorkerHouseCleaner;
+    fScheduler: TIdSchedulerOfThreadDefault;
 
     function DoGetActive(): Boolean;
     function DoToThreadPriority(AValue: string; ADefault: TThreadPriority): TThreadPriority;
@@ -130,7 +131,7 @@ type
     procedure DoServerSessionEnd(Session: TIdHTTPSession);
     procedure DoQuerySSLPort(APort: TIdPort; var VUseSSL: Boolean);
   public
-    constructor Create(Router: TRouter);
+    constructor Create(Router: TRouter; ConnectionMgr: TConnectionManager);
     destructor Destroy; override;
 
     function GetServerInfo(): TServerInfo;
@@ -142,13 +143,12 @@ type
     property Router: TRouter read fRouter;
     property IsActive: Boolean read DoGetActive;
     property Server: TIdHTTPServer read fServer;
-    property ConnectionMgr: TDBConnectionManager read fConnectionMgr;
+    property ConnectionMgr: TConnectionManager read fConnectionMgr;
   end;
 
 implementation
 
-uses IdSocketHandle, IdSchedulerOfThreadDefault, Data, Utils, StrUtils,
-  RequestExecutor, Commons;
+uses IdSocketHandle, Data, Utils, StrUtils, RequestExecutor, Commons;
 
 { TPart }
 
@@ -340,6 +340,7 @@ end;
 constructor TCommandHTTP.Create(AOwner: THTTPServer; ARequestInfo: TIdHTTPRequestInfo;
   AResponseInfo: TIdHTTPResponseInfo);
 begin
+  inherited Create();
   fOwner := AOwner;
   fRequestInfo := ARequestInfo;
   fResponseInfo := AResponseInfo;
@@ -498,6 +499,7 @@ begin
 
   cmd := TCommandHTTP.Create(Self, ARequestInfo, AResponseInfo);
   cmd.Route := fRouter.GetRoute(ARequestInfo.Document, ARequestInfo.CommandType);
+  cmd.ConnectionMgr:= fConnectionMgr;
 
   try
     try
@@ -512,7 +514,7 @@ begin
       AResponseInfo.CustomHeaders.AddValue('Access-Control-Allow-Credentials', fAllowCredentials);
       AResponseInfo.ContentType := 'application/json';
 
-      TRequestExecutorHTTP(fReqExec).Fire(cmd);
+      TRequestExecutor(fReqExec).Fire(cmd);
     except
       on E: Exception do
         WriteLn(E.ClassName, ': ', E.Message);
@@ -546,17 +548,18 @@ begin
   VUseSSL := APort = p;
 end;
 
-constructor THTTPServer.Create(Router: TRouter);
+constructor THTTPServer.Create(Router: TRouter;
+  ConnectionMgr: TConnectionManager);
 var
   bind: TIdSocketHandle;
   io: TIdServerIOHandlerSSLOpenSSL;
-  Scheduler: TIdSchedulerOfThreadDefault;
+  //Scheduler: TIdSchedulerOfThreadDefault;
   isUseSSL: Boolean;
 begin
   fIsActive:= False;
   fRouter := Router;
-  fConnectionMgr:= TDBConnectionManager.Create(DataApp.Settings.DBConnectionInfo);
-  fReqExec := TRequestExecutorHTTP.Create(fRouter, fConnectionMgr);
+  fConnectionMgr:= ConnectionMgr;
+  fReqExec := TRequestExecutor.Create(fRouter, fConnectionMgr);
   fServer := TIdHTTPServer.Create(nil);
 
   fUserAccess := TUserAccess.Create;
@@ -573,10 +576,10 @@ begin
   else
     fServer.SessionTimeOut := StrToIntDef(DataApp.Settings.Behaviour.Values['SessionTimeOut'], 120) * 1000;
 
-  scheduler := TIdSchedulerOfThreadDefault.Create(nil);
-  scheduler.MaxThreads := StrToIntDef(DataApp.Settings.Behaviour.Values['MaxThreads'], 100);
-  scheduler.ThreadPriority := DoToThreadPriority(DataApp.Settings.Behaviour.Values['ThreadPriority'], tpNormal);
-  fServer.Scheduler := scheduler;
+  fScheduler := TIdSchedulerOfThreadDefault.Create(nil);
+  fScheduler.MaxThreads := StrToIntDef(DataApp.Settings.Behaviour.Values['MaxThreads'], 100);
+  fScheduler.ThreadPriority := DoToThreadPriority(DataApp.Settings.Behaviour.Values['ThreadPriority'], tpNormal);
+  fServer.Scheduler := fScheduler;
   fServer.MaxConnections := StrToIntDef(DataApp.Settings.Connection.Values['MaxConnections'], 150);
 
   fServer.OnCommandGet := @DoServerCommandGet;
@@ -606,24 +609,15 @@ begin
 
     fServer.OnQuerySSLPort := @DoQuerySSLPort;
   end;
-
-  fCleaner:= TWorkerHouseCleaner.Create(fConnectionMgr);
-  fCleaner.Start;
 end;
 
 destructor THTTPServer.Destroy;
 begin
-  fConnectionMgr.Free;
   fReqExec.Free;
-
-  fServer.Scheduler.Free;
-  fServer.Scheduler:= nil;
-
   fServer.Free;
+  fScheduler.Free;
   fUserAccess.Free;
 
-  fCleaner.Terminate;
-  fCleaner.Free;
   inherited Destroy;
 end;
 
